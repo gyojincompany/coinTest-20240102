@@ -50,7 +50,7 @@ class UpbitApiThread(QThread):  # 시그널 클래스
                                    float(prev_closing_price),
                                    float(signed_change_rate)
                                    )
-            print("53")
+
 
             time.sleep(3)  # 3초 간격으로 요청
 
@@ -69,16 +69,15 @@ class MainWindow(QMainWindow, form_class):  # 슬롯 클래스
     # 슬롯함수 정의
     def fillCoinData(self, trade_price, acc_trade_volume_24h, acc_trade_price_24h,
                      trade_volume, high_price, low_price, prev_closing_price, signed_change_rate):
-        print("72")
-        self.coin_price_label.setText(trade_price)  # 코인의 현재가 출력
-        print("74")
-        self.coin_changelate_label.setText(signed_change_rate)  # 코인 가격 변화율 출력
-        self.acc_trade_volume_label.setText(acc_trade_volume_24h)  # 24시간 누적거래량 출력
-        self.acc_trade_price_label.setText(acc_trade_price_24h)  # 24시간 누적거래금액 출력
-        self.trade_volume_label.setText(trade_volume)  # 최근 거래량 출력
-        self.high_price_label.setText(high_price)  # 당일 고가 출력
-        self.low_price_label.setText(low_price)  # 당일 저가 출력
-        self.prev_closing_price_label.setText(prev_closing_price)  # 전일 종가 출력
+
+        self.coin_price_label.setText(f"{trade_price}")  # 코인의 현재가 출력
+        self.coin_changelate_label.setText(f"{signed_change_rate}")  # 코인 가격 변화율 출력
+        self.acc_trade_volume_label.setText(f"{acc_trade_volume_24h}")  # 24시간 누적거래량 출력
+        self.acc_trade_price_label.setText(f"{acc_trade_price_24h}")  # 24시간 누적거래금액 출력
+        self.trade_volume_label.setText(f"{trade_volume}")  # 최근 거래량 출력
+        self.high_price_label.setText(f"{high_price}")  # 당일 고가 출력
+        self.low_price_label.setText(f"{low_price}")  # 당일 저가 출력
+        self.prev_closing_price_label.setText(f"{prev_closing_price}")  # 전일 종가 출력
 
         
 app = QApplication(sys.argv)

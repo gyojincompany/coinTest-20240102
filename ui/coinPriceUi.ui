@@ -64,9 +64,9 @@
    <widget class="QLabel" name="coin_ticker_label">
     <property name="geometry">
      <rect>
-      <x>264</x>
+      <x>250</x>
       <y>71</y>
-      <width>91</width>
+      <width>111</width>
       <height>41</height>
      </rect>
     </property>

@@ -12,6 +12,8 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
+import pyupbit
+
 form_class = uic.loadUiType("ui/coinPriceUi.ui")[0]  # 기 제작된 UI 불러오기
 
 class UpbitApiThread(QThread):  # 시그널 클래스
@@ -19,12 +21,14 @@ class UpbitApiThread(QThread):  # 시그널 클래스
     # 시그널 함수 정의(시그널클래스(UpbitApiThread 클래스)에서 슬롯클래스(MainWindow)로 데이터 전송)
     coinDataSent = pyqtSignal(float, float, float, float, float, float, float, float)
 
-    def __init__(self):
+    def __init__(self, ticker):
         super().__init__()
+        self.ticker = ticker
+        self.alive = True
 
     def run(self):
-        while True:
-            url = "https://api.upbit.com/v1/ticker?markets=KRW-BTC"
+        while self.alive:
+            url = f"https://api.upbit.com/v1/ticker?markets=KRW-{self.ticker}"
 
             headers = {"accept": "application/json"}
 
@@ -59,17 +63,57 @@ class UpbitApiThread(QThread):  # 시그널 클래스
 
             time.sleep(3)  # 3초 간격으로 요청
 
+    def close(self): # close 함수가 호출되면 while문이 false가 되서 멈춤
+        self.alive = False
+
+
 class MainWindow(QMainWindow, form_class):  # 슬롯 클래스
-    def __init__(self):
+    def __init__(self, ticker="BTC"):
         super().__init__()  # 부모클래스의 생성자 실행
         self.setupUi(self)  # ui 설정
         self.setWindowTitle('UPBIT 서버 코인 가격 VIEWER')  # 프로그램 타이틀 텍스트 설정
         self.setWindowIcon(QIcon('img/bitcoin.png'))  # 아이콘 이미지 불러오기
         self.statusBar().showMessage('ver 0.8')  # 프로그램 상태 표시줄 텍스트 설정
+        self.ticker = ticker
 
-        self.apiThread = UpbitApiThread()  # 시그널 클래스(UpbitApiThread클래스)로 객체 선언
+        self.apiThread = UpbitApiThread(self.ticker)  # 시그널 클래스(UpbitApiThread클래스)로 객체 선언
         self.apiThread.coinDataSent.connect(self.fillCoinData)  # 시그널함수와 슬롯함수 연결
         self.apiThread.start()  # 시그널 클래스 쓰레드의 run함수 시작
+        self.coin_comboBox_set() # 코인 콤보박스 초기 셋팅 함수 호출
+
+    # 코인 리스트 콤보박스 셋팅 함수
+    def coin_comboBox_set(self):
+        tickers = pyupbit.get_tickers()
+
+        coinTickerList = []
+
+        for ticker in tickers:
+            # print(ticker[4:])
+            ticker = ticker[4:]
+            if '-' not in ticker:
+                coinTickerList.append(ticker)
+
+        coinSet = set(coinTickerList)
+        coinTickerList = list(coinSet)
+        coinTickerList = sorted(coinTickerList)
+        coinTickerList.remove('BTC')
+        coinTickerList = ['BTC'] + coinTickerList
+
+        self.coin_comboBox.addItems(coinTickerList)
+        # 코인 콤보박스의 코인 종류가 변경되면 특정 함수를 호출
+        self.coin_comboBox.currentIndexChanged.connect(self.coin_select_change)
+
+    def coin_select_change(self):
+        selected_ticker = self.coin_comboBox.currentText() # 콤보박스에서 현재 선택된 코인 ticker 가져오기
+        self.ticker = selected_ticker  # 콤보박스에 선택한 코인 ticker로 전역변수인 self.ticker 값을 변경
+
+        self.coin_ticker_label.setText(self.ticker)
+        self.apiThread.close()  # 호출하고 있는 while을 멈춤
+        self.apiThread = UpbitApiThread(self.ticker)
+        # 새로운 코인 ticker를 입력한 시그널 클래스 객체를 다시 선언
+        self.apiThread.coinDataSent.connect(self.fillCoinData)  # 시그널함수와 슬롯함수 연결
+        self.apiThread.start()  # 시그널 클래스 쓰레드의 run함수 시작
+
 
     # 슬롯함수 정의
     def fillCoinData(self, trade_price, acc_trade_volume_24h, acc_trade_price_24h,

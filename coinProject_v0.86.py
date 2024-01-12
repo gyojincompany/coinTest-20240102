@@ -3,6 +3,9 @@
 # 2. 현재가 가격 표시 숫자색과 변화율 색 빨간색(상승)과 파란색(하락)으로 적용
 # 3. 코인 종류 선택 콤보박스 기능 추가
 
+# 0.86 버전 업데이트 사항
+# 1. 알람시작 버튼 클릭시 매도 매수 가격 확인 후 메시지 출력 기능 추가
+
 import sys
 import time
 import requests
@@ -21,6 +24,8 @@ class UpbitApiThread(QThread):  # 시그널 클래스
 
     # 시그널 함수 정의(시그널클래스(UpbitApiThread 클래스)에서 슬롯클래스(MainWindow)로 데이터 전송)
     coinDataSent = pyqtSignal(float, float, float, float, float, float, float, float)
+    alarmDataSent = pyqtSignal(float)
+
 
     def __init__(self, ticker):
         super().__init__()
@@ -61,6 +66,8 @@ class UpbitApiThread(QThread):  # 시그널 클래스
                                    float(signed_change_rate)
                                    )
 
+            self.alarmDataSent.emit(float(trade_price))
+
             time.sleep(3)  # 3초 간격으로 요청
 
     def close(self):  # close 함수가 호출되면 while문이 false가 되서 멈춤
@@ -78,8 +85,13 @@ class MainWindow(QMainWindow, form_class):  # 슬롯 클래스
 
         self.apiThread = UpbitApiThread(self.ticker)  # 시그널 클래스(UpbitApiThread클래스)로 객체 선언
         self.apiThread.coinDataSent.connect(self.fillCoinData)  # 시그널함수와 슬롯함수 연결
+        self.apiThread.alarmDataSent.connect(self.alarmDataCheck)  # 시그널함수와 슬롯함수 연결
         self.apiThread.start()  # 시그널 클래스 쓰레드의 run함수 시작
         self.coin_comboBox_set()  # 코인 콤보박스 초기 셋팅 함수 호출
+
+        self.alarm_btn.clicked.connect(self.alarmActive)
+
+
 
     # 코인 리스트 콤보박스 셋팅 함수
     def coin_comboBox_set(self):
@@ -112,6 +124,7 @@ class MainWindow(QMainWindow, form_class):  # 슬롯 클래스
         self.apiThread = UpbitApiThread(self.ticker)
         # 새로운 코인 ticker를 입력한 시그널 클래스 객체를 다시 선언
         self.apiThread.coinDataSent.connect(self.fillCoinData)  # 시그널함수와 슬롯함수 연결
+        self.apiThread.alarmDataSent.connect(self.alarmDataCheck)  # 시그널함수와 슬롯함수 연결
         self.apiThread.start()  # 시그널 클래스 쓰레드의 run함수 시작
 
     # 슬롯함수 정의
@@ -127,6 +140,37 @@ class MainWindow(QMainWindow, form_class):  # 슬롯 클래스
         self.low_price_label.setText(f"{low_price:,.0f}원")  # 당일 저가 출력
         self.prev_closing_price_label.setText(f"{prev_closing_price:,.0f}원")  # 전일 종가 출력
         self.updownStyle()
+
+    def alarmActive(self):
+        # self.alarm_btn.text() # 알람버튼의 이름->알람시작
+        self.alarmFlag = 0
+        if self.alarm_btn.text() == '알람시작':
+            self.alarm_btn.setText('알람중지')
+            self.alarm_sell_input.setDisabled(True)  # 알람시작시 알람입력창 비활성화
+            self.alarm_buy_input.setDisabled(True)
+        else:
+            self.alarm_btn.setText('알람시작')
+            self.alarm_sell_input.setEnabled(True)  # 알람종료시 알람입력창 활성화
+            self.alarm_buy_input.setEnabled(True)
+
+    def alarmDataCheck(self, trade_price):  # 알람체크 슬롯함수
+        print(f"알람체크값 : {trade_price}")
+        if self.alarm_btn.text() == '알람중지':
+            if self.alarm_sell_input.text() == '' or self.alarm_buy_input.text() == '':
+                if self.alarmFlag == 0:
+                    self.alarm_btn.setText('알람시작')
+                    self.alarmFlag = 1
+                    QMessageBox.warning(self, "입력오류!", "알람금액을 입력하신 후 알람시작 버튼을 눌러주세요.")
+            else:
+                if self.alarmFlag == 0:
+                    alarm1price = float(self.alarm_sell_input.text())
+                    alarm2price = float(self.alarm_buy_input.text())
+                    if trade_price >= alarm1price:
+                        self.alarmFlag = 1
+                        print("매도가격도달!!!")
+                    if trade_price <= alarm2price:
+                        self.alarmFlag = 1
+                        print("매수가격도달!!!")
 
     # 상승과 하락시 각각 빨간색과 파란색으로 금액과 변화율 박스 색 구별 출력 함수
     def updownStyle(self):
